@@ -3,182 +3,308 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>Control de Acceso Escolar</title>
 
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      padding: 20px;
       font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      color: #111827;
       text-align: center;
-      background: #f2f4f7;
+    }
+
+    .contenedor {
+      width: min(95%, 560px);
+      margin: 20px auto;
     }
 
     h1 {
-      font-size: 28px;
-      margin-bottom: 5px;
+      margin: 10px 0 6px;
+      font-size: 26px;
+    }
+
+    .subtitulo {
+      margin: 0 0 15px;
+      color: #475569;
+    }
+
+    #estado,
+    #resultado {
+      background: white;
+      border-radius: 14px;
+      padding: 15px;
+      margin: 12px 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,.08);
     }
 
     #estado {
-      font-size: 20px;
-      margin: 15px;
       font-weight: bold;
+      font-size: 18px;
+    }
+
+    #resultado {
+      min-height: 62px;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     #lector {
       width: 100%;
-      max-width: 500px;
-      margin: auto;
-      background: white;
-      border-radius: 15px;
+      max-width: 520px;
+      margin: 15px auto;
+      background: #000;
+      border-radius: 16px;
       overflow: hidden;
     }
 
-    #resultado {
-      margin: 20px auto;
-      max-width: 500px;
-      padding: 20px;
-      background: white;
-      border-radius: 15px;
-      font-size: 24px;
-      font-weight: bold;
+    .nota {
+      color: #64748b;
+      font-size: 13px;
+      margin-top: 12px;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>CONTROL DE ACCESO ESCOLAR</h1>
+  <div class="contenedor">
 
-  <div id="estado">📷 Iniciando cámara...</div>
+    <h1>CONTROL DE ACCESO ESCOLAR</h1>
 
-  <div id="lector"></div>
+    <p class="subtitulo">
+      Escáner automático de credenciales QR
+    </p>
 
-  <div id="resultado">
-    Esperando código QR...
+    <div id="estado">
+      📷 Iniciando cámara...
+    </div>
+
+    <div id="lector"></div>
+
+    <div id="resultado">
+      Esperando código QR...
+    </div>
+
+    <div class="nota">
+      El sistema registra únicamente la entrada.
+      Una segunda lectura no modifica la entrada existente.
+    </div>
+
   </div>
 
-<script>
+  <script>
 
-  /* DIRECCIÓN DE TU SISTEMA DE GOOGLE APPS SCRIPT */
-  const SISTEMA =
-  "https://script.google.com/macros/s/AKfycbx2NDqUQV9DdaPbAmDTXn0rdg9MTNMLbgz0OFMAzkS154Zwgsut3LVTthOwdcY0mjGk2g/exec";
+    /* DIRECCIÓN DE GOOGLE APPS SCRIPT */
 
-  let procesando = false;
+    const SISTEMA = "https://script.google.com/macros/s/AKfycbx2NDqUQV9DdaPbAmDTXn0rdg9MTNMLbgz0OFMAzkS154Zwgsut3LVTthOwdcY0mjGk2g/exec";
 
-  function iniciarEscaner() {
+    let procesando = false;
+    let scanner = null;
 
-    const scanner = new Html5Qrcode("lector");
 
-    scanner.start(
-      { facingMode: "environment" },
+    function mostrarResultado(texto) {
 
-      {
-        fps: 10,
-        qrbox: {
-          width: 280,
-          height: 280
-        }
-      },
+      document.getElementById("resultado").innerHTML = texto;
 
-      function(textoQR) {
+    }
 
-        if (procesando) return;
 
-        let numeroLista = "";
+    function iniciarEscaner() {
 
-        try {
+      scanner = new Html5Qrcode("lector");
 
-          const url = new URL(textoQR);
-          numeroLista = url.searchParams.get("lista");
 
-        } catch (e) {
+      scanner.start(
 
-          numeroLista = textoQR;
+        { facingMode: "environment" },
 
-        }
+        {
+          fps: 10,
 
-        if (!numeroLista) {
+          qrbox: {
+            width: 280,
+            height: 280
+          }
+        },
 
-          document.getElementById("resultado").innerHTML =
-            "❌ QR NO VÁLIDO";
 
-          return;
-        }
+        function(textoQR) {
 
-        procesando = true;
+          if (procesando) return;
 
-        document.getElementById("estado").innerHTML =
-          "⏳ Registrando entrada...";
 
-        document.getElementById("resultado").innerHTML =
-          "⏳ Procesando alumno...";
+          let numeroLista = "";
 
-        const nombreFuncion =
-          "respuestaQR_" + Date.now();
 
-        window[nombreFuncion] = function(respuesta) {
+          try {
 
-          document.getElementById("resultado").innerHTML =
-            respuesta.resultado;
+            const url = new URL(textoQR);
+
+            numeroLista =
+              url.searchParams.get("lista") || "";
+
+          } catch (e) {
+
+            numeroLista = textoQR.trim();
+
+          }
+
+
+          if (!numeroLista) {
+
+            mostrarResultado("❌ QR NO VÁLIDO");
+
+            return;
+
+          }
+
+
+          procesando = true;
+
 
           document.getElementById("estado").innerHTML =
-            "📷 LISTO PARA EL SIGUIENTE ALUMNO";
+            "⏳ REGISTRANDO ENTRADA...";
 
-          delete window[nombreFuncion];
 
-          setTimeout(function() {
+          mostrarResultado(
+            "⏳ Procesando alumno..."
+          );
+
+
+          const nombreFuncion =
+            "respuestaQR_" + Date.now();
+
+
+          window[nombreFuncion] =
+            function(respuesta) {
+
+
+              if (
+                respuesta &&
+                respuesta.resultado
+              ) {
+
+                mostrarResultado(
+                  respuesta.resultado
+                );
+
+              } else {
+
+                mostrarResultado(
+                  "❌ No se recibió respuesta del sistema"
+                );
+
+              }
+
+
+              document.getElementById("estado").innerHTML =
+                "📷 LISTO PARA EL SIGUIENTE ALUMNO";
+
+
+              delete window[nombreFuncion];
+
+
+              setTimeout(function() {
+
+                procesando = false;
+
+                mostrarResultado(
+                  "Esperando código QR..."
+                );
+
+              }, 2000);
+
+            };
+
+
+          const script =
+            document.createElement("script");
+
+
+          script.onerror = function() {
+
+            delete window[nombreFuncion];
 
             procesando = false;
 
-            document.getElementById("resultado").innerHTML =
-              "Esperando código QR...";
 
-          }, 2000);
+            document.getElementById("estado").innerHTML =
+              "❌ ERROR DE CONEXIÓN";
 
-        };
 
-        const script = document.createElement("script");
+            mostrarResultado(
+              "No se pudo conectar con el sistema."
+            );
 
-        script.src =
-          SISTEMA +
-          "?lista=" +
-          encodeURIComponent(numeroLista) +
-          "&callback=" +
-          nombreFuncion;
+          };
 
-        document.body.appendChild(script);
 
-      },
+          script.src =
+            SISTEMA +
+            "?lista=" +
+            encodeURIComponent(numeroLista) +
+            "&callback=" +
+            encodeURIComponent(nombreFuncion) +
+            "&t=" +
+            Date.now();
 
-      function(error) {
-        // No hacemos nada mientras busca un QR
-      }
 
-    )
+          document.body.appendChild(script);
 
-    .then(function() {
+        },
 
-      document.getElementById("estado").innerHTML =
-        "📷 CÁMARA ACTIVA — ESCANEA UN QR";
 
-    })
+        function(error) {
 
-    .catch(function(error) {
+          // Ignoramos los errores normales
+          // mientras busca un código QR.
 
-      document.getElementById("estado").innerHTML =
-        "❌ NO SE PUDO ABRIR LA CÁMARA";
+        }
 
-    });
+      )
 
-  }
 
-  window.onload = iniciarEscaner;
+      .then(function() {
 
-</script>
+        document.getElementById("estado").innerHTML =
+          "📷 CÁMARA ACTIVA — ESCANEA UN QR";
+
+      })
+
+
+      .catch(function(error) {
+
+        document.getElementById("estado").innerHTML =
+          "❌ NO SE PUDO ACTIVAR LA CÁMARA";
+
+
+        mostrarResultado(
+          "Permite el acceso a la cámara y vuelve a abrir el escáner."
+        );
+
+
+        console.error(error);
+
+      });
+
+    }
+
+
+    window.addEventListener(
+      "load",
+      iniciarEscaner
+    );
+
+  </script>
 
 </body>
 </html>
